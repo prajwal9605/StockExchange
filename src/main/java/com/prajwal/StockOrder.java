@@ -1,7 +1,5 @@
 package main.java.com.prajwal;
 
-import java.util.Comparator;
-
 /**
  * @author prajwal.kulkarni on 06/05/21
  */

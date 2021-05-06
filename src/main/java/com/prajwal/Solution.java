@@ -31,7 +31,7 @@ public class Solution {
                 stockByCompany.put(company, orders);
             } else {
                 List<StockOrder> existingOrders = stockByCompany.get(company);
-                if ("buy".equalsIgnoreCase(order.getOrderType()))  {
+                if ("buy".equalsIgnoreCase(order.getOrderType())) {
                     List<StockOrder> eligibleOrders = existingOrders.stream().filter(existingOrder ->
                             "sell".equalsIgnoreCase(existingOrder.getOrderType()) && existingOrder.getPrice() < order.getPrice())
                             .collect(Collectors.toList());
@@ -146,7 +146,7 @@ public class Solution {
         String[] lines = fileContent.split("\n", -1);
         List<StockOrder> orderList = new ArrayList();
 
-        for (String line: lines) {
+        for (String line : lines) {
             String regex = "#([\\d]+)[\\s]+([\\d]{2}:[\\d]{2})[\\s]+([A-Z]+)[\\s]+([a-z]+)[\\s]+([\\d]+.[\\d]{2})[\\s]+([\\d]+)";
             Pattern pattern = Pattern.compile(regex);
             Matcher matcher = pattern.matcher(line);
