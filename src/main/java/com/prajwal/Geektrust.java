@@ -9,7 +9,7 @@ import java.util.stream.Collectors;
 /**
  * @author prajwal.kulkarni on 06/05/21
  */
-public class Solution {
+public class Geektrust {
 
     public static void main(String... args) {
 
