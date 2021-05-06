@@ -57,6 +57,7 @@ public class Solution {
                         Iterator<StockOrder> iterator = eligibleOrders.listIterator();
                         List<StockOrder> itemsToBeRemoved = new ArrayList();
                         while (iterator.hasNext() && quantity > 0) {
+                            // execute the order
                             StockOrder nextOrder = iterator.next();
                             if (quantity > nextOrder.getQuantity()) {
                                 orderResult.append("#" + order.getOrderId() + " " + nextOrder.getPrice() + " " + nextOrder.getQuantity() + " #" + nextOrder.getOrderId() + "\n");
@@ -73,8 +74,10 @@ public class Solution {
                             }
                         }
 
+                        // remove the ones whose all units are sold or bought
                         existingOrders.removeAll(itemsToBeRemoved);
 
+                        // add the new order only if some quantity is left
                         if (quantity > 0) {
                             existingOrders.add(order);
                         }
@@ -89,7 +92,7 @@ public class Solution {
                             .collect(Collectors.toList());
 
                     if (!eligibleOrders.isEmpty()) {
-                        // sort by the lowest price and use time in case the price is the same
+                        // sort by the highest price and use time in case the price is the same
                         eligibleOrders.sort((o1, o2) -> {
                             if (o1.getPrice() > o2.getPrice()) {
                                 return -1;
@@ -109,6 +112,7 @@ public class Solution {
                         Iterator<StockOrder> iterator = eligibleOrders.listIterator();
                         List<StockOrder> itemsToBeRemoved = new ArrayList();
                         while (iterator.hasNext() && quantity > 0) {
+                            // execute the order
                             StockOrder nextOrder = iterator.next();
                             if (quantity > nextOrder.getQuantity()) {
                                 orderResult.append("#" + nextOrder.getOrderId() + " " + order.getPrice() + " " + nextOrder.getQuantity() + " #" + order.getOrderId() + "\n");
@@ -125,8 +129,10 @@ public class Solution {
                             }
                         }
 
+                        // remove the ones whose all units are sold or bought
                         existingOrders.removeAll(itemsToBeRemoved);
 
+                        // add the new order only if some quantity is left
                         if (quantity > 0) {
                             existingOrders.add(order);
                         }
