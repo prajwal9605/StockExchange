@@ -1,4 +1,4 @@
-package main.java.com.prajwal;
+package com.prajwal;
 
 /**
  * @author prajwal.kulkarni on 06/05/21

@@ -1,4 +1,4 @@
-package main.java.com.prajwal;
+package com.prajwal;
 
 import java.io.File;
 import java.io.FileInputStream;
