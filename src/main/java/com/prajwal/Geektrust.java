@@ -1,5 +1,14 @@
 package com.prajwal;
 
+import com.prajwal.comparator.BuyOrderComparator;
+import com.prajwal.comparator.SellOrderComparator;
+import com.prajwal.model.StockOrder;
+import com.prajwal.model.Transaction;
+import com.prajwal.order.Order;
+import com.prajwal.order.impl.BuyOrder;
+import com.prajwal.order.impl.SellOrder;
+import com.prajwal.util.FileUtil;
+
 import java.io.File;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -13,144 +22,77 @@ public class Geektrust {
 
     public static void main(String... args) {
 
+        // read the file path from the arguments
         File file = new File(args[0]);
+
+        // if file does not exists, then return from the method
+        if (!file.exists()) {
+            return;
+        }
         String fileContent = FileUtil.readFileAsString(file);
 
-        List<StockOrder> orderList = convertStringToList(fileContent);
-        System.out.println("Read the orders from the file: " + orderList);
+        // return if the file content could not be read
+        if (fileContent == null) {
+            return;
+        }
 
-        Map<String, List<StockOrder>> stockByCompany = new HashMap<>();
-        StringBuilder orderResult = new StringBuilder();
+        List<StockOrder> orderList = convertStringToList(fileContent);
+
+        Map<String, Map<StockOrder.OrderType, PriorityQueue<StockOrder>>> stockByCompany = new HashMap<>();
+        List<Transaction> transactionList = new ArrayList<>();
         orderList.forEach(order -> {
             String company = order.getStock();
+            StockOrder.OrderType orderType = order.getOrderType();
+            StockOrder.OrderType orderTypeToFetch = StockOrder.OrderType.SELL.equals(orderType) ?
+                    StockOrder.OrderType.BUY : StockOrder.OrderType.SELL;
 
             // if there is no existing order for the company add it to the map
-            if (!stockByCompany.containsKey(company)) {
-                List<StockOrder> orders = new ArrayList<>();
-                orders.add(order);
-                stockByCompany.put(company, orders);
+            if (!stockByCompany.containsKey(company) ||
+                    !stockByCompany.get(company).containsKey(orderTypeToFetch)) {
+                // update the map
+                updateMap(stockByCompany, order, company, orderType);
             } else {
-                List<StockOrder> existingOrders = stockByCompany.get(company);
-                if ("buy".equalsIgnoreCase(order.getOrderType())) {
-                    List<StockOrder> eligibleOrders = existingOrders.stream().filter(existingOrder ->
-                            "sell".equalsIgnoreCase(existingOrder.getOrderType()) && existingOrder.getPrice() < order.getPrice())
-                            .collect(Collectors.toList());
+                Order processingOrder = StockOrder.OrderType.SELL.equals(orderType) ? new SellOrder() : new BuyOrder();
 
-                    if (!eligibleOrders.isEmpty()) {
-                        // sort by the lowest price and use time in case the price is the same
-                        eligibleOrders.sort((o1, o2) -> {
-                            if (o1.getPrice() < o2.getPrice()) {
-                                return -1;
-                            } else if (o2.getPrice() < o1.getPrice()) {
-                                return 1;
-                            } else {
-                                if (o1.getTime() < o2.getTime()) {
-                                    return -1;
-                                } else if (o2.getTime() < o1.getTime()) {
-                                    return 1;
-                                }
-                            }
-                            return 0;
-                        });
+                PriorityQueue<StockOrder> existingOrdersToProcess = stockByCompany.get(company).get(orderTypeToFetch);
+                processingOrder.processOrder(order, existingOrdersToProcess, transactionList);
 
-                        int quantity = order.getQuantity();
-                        Iterator<StockOrder> iterator = eligibleOrders.listIterator();
-                        List<StockOrder> itemsToBeRemoved = new ArrayList();
-                        while (iterator.hasNext() && quantity > 0) {
-                            // execute the order
-                            StockOrder nextOrder = iterator.next();
-                            if (quantity > nextOrder.getQuantity()) {
-                                orderResult.append("#" + order.getOrderId() + " " + nextOrder.getPrice() + " " + nextOrder.getQuantity() + " #" + nextOrder.getOrderId() + "\n");
-                                quantity = quantity - nextOrder.getQuantity();
-
-                                order.setQuantity(quantity);
-                                itemsToBeRemoved.add(nextOrder);
-                            } else {
-                                orderResult.append("#" + order.getOrderId() + " " + nextOrder.getPrice() + " " + quantity + " #" + nextOrder.getOrderId() + "\n");
-                                order.setQuantity(0);
-                                nextOrder.setQuantity(nextOrder.getQuantity() - quantity);
-
-                                quantity = 0;
-                            }
-                        }
-
-                        // remove the ones whose all units are sold or bought
-                        existingOrders.removeAll(itemsToBeRemoved);
-
-                        // add the new order only if some quantity is left
-                        if (quantity > 0) {
-                            existingOrders.add(order);
-                        }
-
+                if (order.getQuantity() > 0) {
+                    PriorityQueue<StockOrder> existingOrders = stockByCompany.get(company).get(orderType);
+                    if (existingOrders == null) {
+                        updateMap(stockByCompany, order, company, orderType);
                     } else {
                         existingOrders.add(order);
                     }
-
-                } else {
-                    List<StockOrder> eligibleOrders = existingOrders.stream().filter(existingOrder ->
-                            "buy".equalsIgnoreCase(existingOrder.getOrderType()) && existingOrder.getPrice() > order.getPrice())
-                            .collect(Collectors.toList());
-
-                    if (!eligibleOrders.isEmpty()) {
-                        // sort by the highest price and use time in case the price is the same
-                        eligibleOrders.sort((o1, o2) -> {
-                            if (o1.getPrice() > o2.getPrice()) {
-                                return -1;
-                            } else if (o2.getPrice() > o1.getPrice()) {
-                                return 1;
-                            } else {
-                                if (o1.getTime() < o2.getTime()) {
-                                    return -1;
-                                } else if (o2.getTime() < o1.getTime()) {
-                                    return 1;
-                                }
-                            }
-                            return 0;
-                        });
-
-                        int quantity = order.getQuantity();
-                        Iterator<StockOrder> iterator = eligibleOrders.listIterator();
-                        List<StockOrder> itemsToBeRemoved = new ArrayList();
-                        while (iterator.hasNext() && quantity > 0) {
-                            // execute the order
-                            StockOrder nextOrder = iterator.next();
-                            if (quantity > nextOrder.getQuantity()) {
-                                orderResult.append("#" + nextOrder.getOrderId() + " " + order.getPrice() + " " + nextOrder.getQuantity() + " #" + order.getOrderId() + "\n");
-                                quantity = quantity - nextOrder.getQuantity();
-
-                                order.setQuantity(quantity);
-                                itemsToBeRemoved.add(nextOrder);
-                            } else {
-                                orderResult.append("#" + nextOrder.getOrderId() + " " + nextOrder.getPrice() + " " + quantity + " #" + order.getOrderId() + "\n");
-                                order.setQuantity(0);
-                                nextOrder.setQuantity(nextOrder.getQuantity() - quantity);
-
-                                quantity = 0;
-                            }
-                        }
-
-                        // remove the ones whose all units are sold or bought
-                        existingOrders.removeAll(itemsToBeRemoved);
-
-                        // add the new order only if some quantity is left
-                        if (quantity > 0) {
-                            existingOrders.add(order);
-                        }
-
-                    } else {
-                        existingOrders.add(order);
-                    }
-
-
                 }
             }
         });
-        System.out.println(orderResult);
+        List<String> transactionStrList = transactionList.stream().map(Transaction::toString).collect(Collectors.toList());
+        System.out.println(String.join("\n", transactionStrList));
+    }
+
+    private static void updateMap(Map<String, Map<StockOrder.OrderType, PriorityQueue<StockOrder>>> stockByCompany, StockOrder stockOrder,
+                           String company, StockOrder.OrderType orderType) {
+        Map<StockOrder.OrderType, PriorityQueue<StockOrder>> ordersMap = stockByCompany.get(company);
+        if (ordersMap == null) {
+            ordersMap = new HashMap<>();
+        }
+        PriorityQueue<StockOrder> priorityQueue = ordersMap.get(orderType);
+        if (priorityQueue == null) {
+            // create a priority queue with an appropriate comparator
+            Comparator<StockOrder> comparator = StockOrder.OrderType.SELL.equals(orderType) ? new SellOrderComparator() :
+                    new BuyOrderComparator();
+            priorityQueue = new PriorityQueue<>(comparator);
+        }
+        priorityQueue.add(stockOrder);
+        ordersMap.put(orderType, priorityQueue);
+
+        stockByCompany.put(company, ordersMap);
     }
 
     static List<StockOrder> convertStringToList(String fileContent) {
         String[] lines = fileContent.split("\n", -1);
-        List<StockOrder> orderList = new ArrayList();
+        List<StockOrder> orderList = new ArrayList<>();
 
         for (String line : lines) {
             String regex = "#([\\d]+)[\\s]+([\\d]{2}:[\\d]{2})[\\s]+([A-Z]+)[\\s]+([a-z]+)[\\s]+([\\d]+.[\\d]{2})[\\s]+([\\d]+)";
@@ -167,13 +109,13 @@ public class Geektrust {
                 text = matcher.group(2);
                 int hours = Integer.parseInt(text.split(":")[0]);
                 int minutes = Integer.parseInt(text.split(":")[1]);
-                stockOrder.setTime(hours + 60 * minutes);
+                stockOrder.setTime(hours * 60 + minutes);
 
                 text = matcher.group(3);
                 stockOrder.setStock(text);
 
                 text = matcher.group(4);
-                stockOrder.setOrderType(text);
+                stockOrder.setOrderType(StockOrder.OrderType.valueOf(text.toUpperCase()));
 
                 text = matcher.group(5);
                 stockOrder.setPrice(Double.parseDouble(text));
